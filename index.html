@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ស្កេនវត្តមានបុគ្គលិក</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- បណ្ណាល័យស្កេន QR តាម Camera ទូរស័ព្ទ -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center justify-center font-sans">
@@ -13,11 +12,11 @@
   <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
     <div class="text-center mb-5">
       <h1 class="text-2xl font-bold text-gray-800">ស្កេនវត្តមានរោងចក្រ</h1>
-      <p class="text-xs text-gray-500 mt-1">សូមបំពេញព័ត៌មាន និងបើកកាមេរ៉ាស្កេន</p>
+      <p class="text-xs text-gray-500 mt-1">ស្កេន QR និងផ្ទៀងផ្ទាត់មុខ (Selfie)</p>
     </div>
 
-    <!-- ប្រអប់ព័ត៌មានបុគ្គលិក (វាយតែម្តង វានឹង Save ជាប់ទូរស័ព្ទរហូត) -->
-    <div class="space-y-3 mb-5">
+    <!-- ប្រអប់ព័ត៌មានបុគ្គលិក -->
+    <div id="inputSection" class="space-y-3 mb-5">
       <div>
         <label class="block text-xs font-semibold text-gray-600 mb-1">អត្តលេខកម្មករ (Worker ID)</label>
         <input type="text" id="workerId" placeholder="ឧ. W001" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none uppercase font-bold text-gray-700">
@@ -27,7 +26,6 @@
         <input type="password" id="pin" placeholder="****" maxlength="6" class="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-gray-700">
       </div>
 
-      <!-- ជ្រើសរើស ចូល ឬ ចេញ -->
       <div class="flex gap-3 pt-1">
         <label class="flex-1 text-center py-2 border-2 border-green-500 rounded-xl cursor-pointer has-[:checked]:bg-green-500 has-[:checked]:text-white font-bold text-green-700 transition">
           <input type="radio" name="scanType" value="IN" checked class="hidden"> ស្កេនចូល (IN)
@@ -38,16 +36,27 @@
       </div>
     </div>
 
-    <!-- ប៊ូតុងបើកកាមេរ៉ា -->
+    <!-- ប៊ូតុងចាប់ផ្តើមស្កេន -->
     <button id="btnStart" onclick="startScanner()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg transition flex justify-center items-center gap-2 mb-4">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
-      បើកកាមេរ៉ាស្កេន
+      បើកកាមេរ៉ាស្កេន QR
     </button>
 
-    <!-- កន្លែងបង្ហាញកាមេរ៉ាស្កេន -->
+    <!-- កន្លែងបង្ហាញកាមេរ៉ាស្កេន QR -->
     <div id="reader-container" class="hidden overflow-hidden rounded-xl border border-gray-300">
       <div id="reader" style="width: 100%;"></div>
     </div>
+
+    <!-- ផ្ទាំងថត Selfie ស្វ័យប្រវត្តិ -->
+    <div id="selfieSection" class="hidden text-center">
+      <div class="relative w-64 h-64 mx-auto rounded-2xl overflow-hidden border-4 border-indigo-500 shadow-md mb-3">
+        <video id="selfieVideo" autoplay playsinline class="w-full h-full object-cover transform -scale-x-100"></video>
+        <div id="selfieCountdown" class="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-6xl font-black">3</div>
+      </div>
+      <p class="text-sm font-semibold text-gray-700">សូមមើលចំកាមេរ៉ាដើម្បីថតរូបបញ្ជាក់មុខ...</p>
+    </div>
+
+    <canvas id="selfieCanvas" class="hidden" width="320" height="320"></canvas>
 
     <!-- សារជូនដំណឹងលទ្ធផល -->
     <div id="resultMessage" class="hidden mt-4 p-4 rounded-xl text-center text-sm font-semibold"></div>
@@ -57,19 +66,18 @@
     // ⚠️ ដាក់ Web App URL របស់អ្នកត្រង់នេះ ⚠️
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzoWy_32_NWzoqkl7N7XVryhH3N8P9-WZCETTMz-ulfqx8JZ-tSDe3Que3eAlfPmeTW/exec";
 
-    // បង្កើត ឬទាញយក Device ID តែមួយគត់សម្រាប់ទូរស័ព្ទនេះ
     let deviceId = localStorage.getItem("factory_device_id");
     if (!deviceId) {
       deviceId = "DEV-" + Math.random().toString(36).substring(2, 9) + "-" + Date.now();
       localStorage.setItem("factory_device_id", deviceId);
     }
 
-    // ចងចាំ Worker ID & PIN លើទូរស័ព្ទ
     document.getElementById("workerId").value = localStorage.getItem("factory_worker_id") || "";
     document.getElementById("pin").value = localStorage.getItem("factory_pin") || "";
 
     let html5QrCode = null;
-    let isProcessing = false;
+    let savedQrCode = "";
+    let selfieStream = null;
 
     function showStatus(msg, isSuccess) {
       const box = document.getElementById("resultMessage");
@@ -108,36 +116,84 @@
     }
 
     function onScanSuccess(decodedText) {
-      if (isProcessing) return;
-      isProcessing = true;
+      savedQrCode = decodedText;
 
-      // បិទកាមេរ៉ាពេលស្កេនបាន
+      // បិទកាមេរ៉ាក្រោយ រួចបើកកាមេរ៉ាមុខ Selfie
       html5QrCode.stop().then(() => {
         document.getElementById("reader-container").classList.add("hidden");
-        document.getElementById("btnStart").classList.remove("hidden");
+        document.getElementById("inputSection").classList.add("hidden");
+        startSelfieCapture();
       });
+    }
 
-      showStatus("កំពុងផ្ទៀងផ្ទាត់ និងកត់ត្រាវត្តមាន...", true);
+    function startSelfieCapture() {
+      document.getElementById("selfieSection").classList.remove("hidden");
 
-      // ទាញទីតាំង GPS (បើមាន)
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(stream => {
+          selfieStream = stream;
+          const video = document.getElementById("selfieVideo");
+          video.srcObject = stream;
+
+          let count = 3;
+          const countdownEl = document.getElementById("selfieCountdown");
+          const timer = setInterval(() => {
+            count--;
+            if (count > 0) {
+              countdownEl.innerText = count;
+            } else {
+              clearInterval(timer);
+              countdownEl.innerText = "✓";
+              captureAndSend();
+            }
+          }, 1000);
+        })
+        .catch(err => {
+          // បើបើកកាមេរ៉ាមុខមិនកើត ផ្ញើដោយគ្មានរូបថត
+          document.getElementById("selfieSection").classList.add("hidden");
+          submitAttendance(savedQrCode, null, null, "");
+        });
+    }
+
+    function captureAndSend() {
+      const video = document.getElementById("selfieVideo");
+      const canvas = document.getElementById("selfieCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // ថតរូបពី Video
+      ctx.drawImage(video, 0, 0, 320, 320);
+      const photoBase64 = canvas.toDataURL("image/jpeg", 0.6);
+
+      // បិទកាមេរ៉ាមុខ
+      if (selfieStream) {
+        selfieStream.getTracks().forEach(track => track.stop());
+      }
+      document.getElementById("selfieSection").classList.add("hidden");
+      document.getElementById("inputSection").classList.remove("hidden");
+      document.getElementById("btnStart").classList.remove("hidden");
+
+      showStatus("កំពុងផ្ញើទិន្នន័យ និងរូបថត...", true);
+
+      // ចាប់ GPS ហើយផ្ញើទៅ Apps Script
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          pos => submitAttendance(decodedText, pos.coords.latitude, pos.coords.longitude),
-          () => submitAttendance(decodedText, null, null),
+          pos => submitAttendance(savedQrCode, pos.coords.latitude, pos.coords.longitude, photoBase64),
+          () => submitAttendance(savedQrCode, null, null, photoBase64),
           { timeout: 7000 }
         );
       } else {
-        submitAttendance(decodedText, null, null);
+        submitAttendance(savedQrCode, null, null, photoBase64);
       }
     }
 
-    function submitAttendance(qrText, lat, lng) {
+    function submitAttendance(qrText, lat, lng, photo) {
       const payload = {
         workerId: document.getElementById("workerId").value.trim(),
         pin: document.getElementById("pin").value.trim(),
         scanType: document.querySelector('input[name="scanType"]:checked').value,
         deviceId: deviceId,
         qrText: qrText,
+        photoBase64: photo,
         lat: lat,
         lng: lng
       };
@@ -149,11 +205,9 @@
       })
       .then(res => res.json())
       .then(data => {
-        isProcessing = false;
         showStatus(data.message, data.success);
       })
       .catch(err => {
-        isProcessing = false;
         showStatus("មានបញ្ហាភ្ជាប់ទៅប្រព័ន្ធ: " + err.message, false);
       });
     }
